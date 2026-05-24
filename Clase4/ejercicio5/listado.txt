@@ -1,0 +1,6 @@
+total 16
+drwxrwxr-x 2 francob francob 4096 may 24 18:48 .
+drwxrwxr-x 9 francob francob 4096 may 24 18:33 ..
+-rw-r--r-- 1 francob francob    0 may 24 18:48 listado.txt
+-rw-rw-r-- 1 francob francob 2187 may 24 18:47 minishell_redireccion.py
+-rw-r--r-- 1 francob francob   13 may 24 18:47 test.txt
