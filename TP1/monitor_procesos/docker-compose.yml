@@ -1,0 +1,9 @@
+services:
+  monitor:
+    build: .
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/app
+    pid: "host"
+    privileged: true
