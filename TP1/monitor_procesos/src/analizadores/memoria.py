@@ -2,7 +2,7 @@ import time
 import os
 import procfs
 
-def recolectar_memoria(snapshot):
+def recolectar_memoria(snapshot,intervalo):
     while True:
         try:
             datos_memoria = {}
@@ -28,8 +28,8 @@ def recolectar_memoria(snapshot):
                     }
             
             snapshot["memoria"] = datos_memoria
-            time.sleep(3) 
+            time.sleep(intervalo.value)
             
         except Exception as e:
             snapshot["memoria"] = {"ERROR": {"comando": f"CRASH: {e}"}}
-            time.sleep(3)
+            time.sleep(intervalo.value)

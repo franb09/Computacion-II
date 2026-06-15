@@ -2,7 +2,7 @@ import time
 import os
 import procfs
 
-def recolectar_senales(snapshot):
+def recolectar_senales(snapshot, intervalo):
     while True:
         try:
             datos_senales = {}
@@ -27,8 +27,8 @@ def recolectar_senales(snapshot):
                     }
             
             snapshot["senales"] = datos_senales
-            time.sleep(3)
+            time.sleep(intervalo.value)
             
         except Exception as e:
             snapshot["senales"] = {"ERROR": {"comando": f"CRASH: {e}", "pendientes": "", "bloqueadas": "", "ignoradas": "", "capturadas": ""}}
-            time.sleep(3)
+            time.sleep(intervalo.value)

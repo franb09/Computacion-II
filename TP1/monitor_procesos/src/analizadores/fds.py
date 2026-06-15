@@ -2,7 +2,7 @@ import time
 import os
 import procfs
 
-def recolectar_fds(snapshot):
+def recolectar_fds(snapshot, intervalo):
     while True:
         try:
             datos_fds = {}
@@ -44,8 +44,8 @@ def recolectar_fds(snapshot):
                     pass
             
             snapshot["fds"] = datos_fds
-            time.sleep(5) 
+            time.sleep(intervalo.value)
             
         except Exception as e:
             snapshot["fds"] = {"ERROR": {"comando": f"CRASH: {e}", "total_fds": 0, "ejemplos": ""}}
-            time.sleep(5)
+            time.sleep(intervalo.value)

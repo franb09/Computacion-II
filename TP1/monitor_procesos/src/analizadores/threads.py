@@ -2,11 +2,7 @@ import time
 import os
 import procfs
 
-def recolectar_threads(snapshot):
-    """
-    Analizador independiente para la vista de Threads.
-    Actualiza snapshot['threads'] cada 3 segundos.
-    """
+def recolectar_threads(snapshot,intervalo):
     while True:
         try:
             datos_threads = {}
@@ -43,8 +39,8 @@ def recolectar_threads(snapshot):
                     pass
             
             snapshot["threads"] = datos_threads
-            time.sleep(3) 
+            time.sleep(intervalo.value)
             
         except Exception as e:
             snapshot["threads"] = {"ERROR": {"comando": f"CRASH: {e}", "total_threads": 0, "ejemplos": ""}}
-            time.sleep(3)
+            time.sleep(intervalo.value)

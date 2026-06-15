@@ -2,7 +2,7 @@ import time
 import os
 import procfs
 
-def recolectar_resumen(snapshot):
+def recolectar_resumen(snapshot, intervalo):
     try:
         jiffies_sys_ant = procfs.leer_jiffies_sistema()
         jiffies_proc_ant = {}
@@ -45,9 +45,10 @@ def recolectar_resumen(snapshot):
                     }
             
             snapshot["resumen"] = datos_resumen
+            time.sleep(intervalo.value)
             jiffies_sys_ant = jiffies_sys_act
-            time.sleep(2)
-            
+
     except Exception as e:
 
         snapshot["resumen"] = {"ERROR": {"comando": f"CRASH: {e}", "estado": "X", "cpu": 0, "rss": 0, "threads": "0"}}
+        time.sleep(intervalo.value)

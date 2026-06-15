@@ -2,7 +2,7 @@ import time
 import os
 import procfs
 
-def recolectar_scheduling(snapshot):
+def recolectar_scheduling(snapshot,intervalo):
 
     while True:
         try:
@@ -27,8 +27,8 @@ def recolectar_scheduling(snapshot):
                     }
             
             snapshot["scheduling"] = datos_sched
-            time.sleep(2)
+            time.sleep(intervalo.value)
             
         except Exception as e:
             snapshot["scheduling"] = {"ERROR": {"comando": f"CRASH: {e}", "prioridad": "0", "nice": "0", "threads": "0", "core": "0"}}
-            time.sleep(2)
+            time.sleep(intervalo.value)

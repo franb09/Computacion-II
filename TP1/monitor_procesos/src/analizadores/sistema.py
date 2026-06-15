@@ -1,6 +1,6 @@
 import time
 
-def recolectar_sistema(snapshot):
+def recolectar_sistema(snapshot, intervalo):
 
     while True:
         try:
@@ -24,8 +24,8 @@ def recolectar_sistema(snapshot):
                 datos['uptime'] = f"{horas}h {mins}m"
             
             snapshot["sistema"] = datos
-            time.sleep(2)
+            time.sleep(intervalo.value)
             
         except Exception as e:
             snapshot["sistema"] = {"ERROR": str(e)}
-            time.sleep(2)
+            time.sleep(intervalo.value)
