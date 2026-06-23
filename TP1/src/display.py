@@ -3,7 +3,6 @@ from rich.panel import Panel
 from rich.align import Align
 
 def generar_panel_ayuda():
-    """Muestra la vista estática de atajos de teclado solicitada."""
     tabla = Table(show_header=True, header_style="bold magenta", expand=True)
     tabla.add_column("Tecla")
     tabla.add_column("Acción")
@@ -23,7 +22,6 @@ def generar_panel_ayuda():
     return Panel(Align.center(tabla), title="[bold magenta]Ayuda - Atajos de Teclado[/bold magenta]", border_style="magenta")
 
 def procesar_datos_ui(datos_dict, estado_ui, max_filas=12):
-    """Aplica filtros, ordenamiento, pineado y devuelve la lista recortada."""
     filtrados = []
     for pid, info in datos_dict.items():
         if pid == "ERROR": continue
@@ -35,21 +33,17 @@ def procesar_datos_ui(datos_dict, estado_ui, max_filas=12):
             continue
         filtrados.append((pid, info))
     
-    # Helper seguro para extraer números y evitar crasheos
     def get_num(item, key):
         try: return float(item.get(key, 0.0))
         except: return 0.0
 
-    # 2. Ordenar
     if estado_ui["orden"] == "pid":
         filtrados.sort(key=lambda x: int(x[0]) if str(x[0]).isdigit() else 0)
     elif estado_ui["orden"] == "rss":
         filtrados.sort(key=lambda x: get_num(x[1], 'memoria'), reverse=True)
     else:
-        # Por defecto y cuando es "cpu", ordenamos de mayor a menor consumo
         filtrados.sort(key=lambda x: get_num(x[1], 'cpu'), reverse=True)
     
-    # 3. Extraer el pineado y ponerlo arriba
     lista_final = []
     pineado_item = None
     if estado_ui["pineado"]:
@@ -64,7 +58,6 @@ def procesar_datos_ui(datos_dict, estado_ui, max_filas=12):
     lista_final.extend(filtrados)
     lista_final = lista_final[:max_filas]
 
-    # Limitar selección
     if len(lista_final) > 0:
         estado_ui["fila_seleccionada"] = max(0, min(estado_ui["fila_seleccionada"], len(lista_final) - 1))
         estado_ui["pid_en_fila"] = lista_final[estado_ui["fila_seleccionada"]][0]

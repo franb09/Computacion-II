@@ -4,16 +4,8 @@ import time
 import sys
 import tty
 import termios
-import signal
-import json
 import os
-from analizadores.resumen import recolectar_resumen
-from analizadores.memoria import recolectar_memoria
-from analizadores.fds import recolectar_fds
-from analizadores.threads import recolectar_threads
-from analizadores.sistema import recolectar_sistema
-from analizadores.senales import recolectar_senales
-from analizadores.scheduling import recolectar_scheduling
+
 from display import (
     generar_tabla_resumen, 
     generar_tabla_memoria, 
@@ -24,13 +16,14 @@ from display import (
     generar_tabla_scheduling,
     generar_panel_ayuda
 )
+from senales import configurar_senales
+from recolector import iniciar_recolectores
 from rich.live import Live
 from rich.panel import Panel
 
 vista_activa = "1"
 corriendo = True
 
-# Variables compartidas de velocidad
 intervalos = {
     "1": multiprocessing.Value('d', 2.0),
     "2": multiprocessing.Value('d', 3.0),
@@ -41,21 +34,19 @@ intervalos = {
     "7": multiprocessing.Value('d', 2.0),
 }
 
-# Estado de la Interfaz de Usuario
 estado_ui = {
     "fila_seleccionada": 0,
     "pineado": None,
     "filtro_cmd": "",
     "filtro_usr": "",
-    "orden": "default", # default, pid, cpu, rss
-    "input_activo": None, # None, 'cmd', 'usr'
+    "orden": "default", 
+    "input_activo": None, 
     "buffer": "",
     "ayuda": False,
-    "pid_en_fila": None # Se actualiza desde display.py
+    "pid_en_fila": None 
 }
 
 def capturar_tecla():
-    """Captura teclas simples y secuencias de escape (flechas)."""
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
@@ -68,7 +59,7 @@ def capturar_tecla():
                 if ch3 == 'A': return 'up'
                 if ch3 == 'B': return 'down'
         elif ch in ('\n', '\r'): return 'enter'
-        elif ch in ('\x7f', '\b'): return 'backspace' # Borrar
+        elif ch in ('\x7f', '\b'): return 'backspace' 
         return ch
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
@@ -78,7 +69,6 @@ def hilo_teclado():
     while corriendo:
         tecla = capturar_tecla()
         
-        # --- MODO INGRESO DE TEXTO (Filtros) ---
         if estado_ui["input_activo"]:
             if tecla == 'enter':
                 if estado_ui["input_activo"] == 'cmd':
@@ -89,14 +79,13 @@ def hilo_teclado():
                 estado_ui["buffer"] = ""
             elif tecla == 'backspace':
                 estado_ui["buffer"] = estado_ui["buffer"][:-1]
-            elif tecla == '\x1b': # Cancelar con ESC
+            elif tecla == '\x1b': 
                 estado_ui["input_activo"] = None
                 estado_ui["buffer"] = ""
             elif len(tecla) == 1:
                 estado_ui["buffer"] += tecla
             continue
 
-        # --- MODO NAVEGACIÓN NORMAL ---
         if not isinstance(tecla, str): continue
         tecla_lower = tecla.lower()
 
@@ -117,7 +106,6 @@ def hilo_teclado():
         elif tecla == 'down':
             estado_ui["fila_seleccionada"] += 1
         elif tecla == 'enter':
-            # Toggle pinear proceso
             if estado_ui["pineado"] == estado_ui["pid_en_fila"]:
                 estado_ui["pineado"] = None
             else:
@@ -146,26 +134,9 @@ def main():
     snapshot["senales"] = {}
     snapshot["scheduling"] = {}
 
-    def manejador_sigusr1(signum, frame):
-        try:
-            data = dict(snapshot)
-            with open("snapshot_dump.json", 'w') as f:
-                json.dump(data, f, indent=4)
-        except Exception:
-            pass
-            
-    signal.signal(signal.SIGUSR1, manejador_sigusr1)
+    configurar_senales(snapshot, intervalos, estado_ui)
 
-    p_resumen = multiprocessing.Process(target=recolectar_resumen, args=(snapshot, intervalos["1"]), daemon=True)
-    p_memoria = multiprocessing.Process(target=recolectar_memoria, args=(snapshot, intervalos["2"]), daemon=True)
-    p_fds = multiprocessing.Process(target=recolectar_fds, args=(snapshot, intervalos["3"]), daemon=True)
-    p_threads = multiprocessing.Process(target=recolectar_threads, args=(snapshot, intervalos["4"]), daemon=True)
-    p_senales = multiprocessing.Process(target=recolectar_senales, args=(snapshot, intervalos["5"]), daemon=True)
-    p_scheduling = multiprocessing.Process(target=recolectar_scheduling, args=(snapshot, intervalos["6"]), daemon=True)
-    p_sistema = multiprocessing.Process(target=recolectar_sistema, args=(snapshot, intervalos["7"]), daemon=True)
-
-    for p in [p_resumen, p_memoria, p_fds, p_threads, p_senales, p_scheduling, p_sistema]:
-        p.start()
+    procesos_activos = iniciar_recolectores(snapshot, intervalos)
 
     t_teclado = threading.Thread(target=hilo_teclado, daemon=True)
     t_teclado.start()
@@ -193,12 +164,12 @@ def main():
                     else:
                         pantalla = Panel(f"Vista {vista_activa} en construcción.", title=f"Monitor")
                     
-                    # Mostrar barra de input si está escribiendo
                     if estado_ui["input_activo"]:
                         tipo = "Comando" if estado_ui["input_activo"] == 'cmd' else "Usuario"
                         pantalla.title = pantalla.title + f" | [bold green]Filtrar {tipo}: {estado_ui['buffer']}█[/bold green]"
                     else:
                         pantalla.title = pantalla.title + f" [dim](Refresco: {intervalos[vista_activa].value:.1f}s)[/dim]"
+                    pantalla.subtitle = "[dim]Presione 'q' para salir | 'h' para ayuda[/dim]"
 
                 live.update(pantalla)
                 time.sleep(0.1) 
@@ -207,7 +178,7 @@ def main():
         pass
     finally:
         print("\nApagando el monitor de forma limpia...")
-        for p in [p_resumen, p_memoria, p_fds, p_threads, p_sistema, p_senales, p_scheduling]:
+        for p in procesos_activos:
             p.terminate()
             p.join()
         sys.exit(0)

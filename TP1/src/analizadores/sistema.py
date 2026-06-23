@@ -1,4 +1,5 @@
 import time
+import procfs
 
 def recolectar_sistema(snapshot, intervalo):
 
