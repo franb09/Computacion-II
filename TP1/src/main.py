@@ -5,6 +5,7 @@ import sys
 import tty
 import termios
 import os
+import json
 
 from display import (
     generar_tabla_resumen, 
@@ -24,15 +25,20 @@ from rich.panel import Panel
 vista_activa = "1"
 corriendo = True
 
-intervalos = {
-    "1": multiprocessing.Value('d', 2.0),
-    "2": multiprocessing.Value('d', 3.0),
-    "3": multiprocessing.Value('d', 5.0),
-    "4": multiprocessing.Value('d', 3.0),
-    "5": multiprocessing.Value('d', 3.0),
-    "6": multiprocessing.Value('d', 2.0),
-    "7": multiprocessing.Value('d', 2.0),
-}
+def cargar_intervalos_config():
+    valores_defaults = {"1": 2.0, "2": 3.0, "3": 5.0, "4": 3.0, "5": 3.0, "6": 2.0, "7": 2.0}
+    try:
+        if os.path.exists("config.json") and os.path.getsize("config.json") > 0:
+            with open("config.json", "r") as f:
+                config = json.load(f)
+                for k in valores_defaults:
+                    if k in config:
+                        valores_defaults[k] = float(config[k])
+    except Exception:
+        pass # por si falla
+    return {k: multiprocessing.Value('d', v) for k, v in valores_defaults.items()}
+
+intervalos = cargar_intervalos_config()
 
 estado_ui = {
     "fila_seleccionada": 0,

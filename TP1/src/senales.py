@@ -12,13 +12,16 @@ def configurar_senales(snapshot, intervalos, estado_ui):
             pass
 
     def manejador_sighup(signum, frame):
-        intervalos["1"].value = 2.0
-        intervalos["2"].value = 3.0
-        intervalos["3"].value = 5.0
-        intervalos["4"].value = 3.0
-        intervalos["5"].value = 3.0
-        intervalos["6"].value = 2.0
-        intervalos["7"].value = 2.0
+        try:
+            with open("config.json", "r") as f:
+                config = json.load(f)
+                for k in intervalos:
+                    if k in config:
+                        intervalos[k].value = float(config[k])
+        except Exception:
+            defaults = {"1": 2.0, "2": 3.0, "3": 5.0, "4": 3.0, "5": 3.0, "6": 2.0, "7": 2.0}
+            for k, v in defaults.items():
+                intervalos[k].value = v
 
     def manejador_sigusr2(signum, frame):
         estado_ui["modo_verbose"] = not estado_ui.get("modo_verbose", False)

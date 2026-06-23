@@ -85,7 +85,7 @@ Para probar el volcado de memoria (SIGUSR1):
 
   2.Identificar el contenedor y mandarle la señal:
   ```bash
-docker kill --signal=SIGUSR1 $(docker ps -q -f ancestor=monitor_procesos-monitor)
+docker kill --signal=SIGUSR1 $(docker ps -q -f ancestor=tp1-monitor)
 ```
 
   3.Revisar que se haya creado el archivo snapshot_dump.json en el host.
