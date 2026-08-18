@@ -1,31 +1,24 @@
 import signal
-import json
+import os
 
-def configurar_senales(snapshot, intervalos, estado_ui):
-    
-    def manejador_sigusr1(signum, frame):
-        try:
-            data = dict(snapshot)
-            with open("snapshot_dump.json", 'w') as f:
-                json.dump(data, f, indent=4)
-        except Exception:
-            pass
+def configurar_senales():
+    pipe_r, pipe_w = os.pipe()
+    os.set_blocking(pipe_r, False) 
 
-    def manejador_sighup(signum, frame):
-        try:
-            with open("config.json", "r") as f:
-                config = json.load(f)
-                for k in intervalos:
-                    if k in config:
-                        intervalos[k].value = float(config[k])
-        except Exception:
-            defaults = {"1": 2.0, "2": 3.0, "3": 5.0, "4": 3.0, "5": 3.0, "6": 2.0, "7": 2.0}
-            for k, v in defaults.items():
-                intervalos[k].value = v
+    def handler_sigusr1(signum, frame): os.write(pipe_w, b'1')
+    def handler_sighup(signum, frame):  os.write(pipe_w, b'H')
+    def handler_sigusr2(signum, frame): os.write(pipe_w, b'2')
+    def handler_sigint(signum, frame):  os.write(pipe_w, b'I')
+    def handler_sigterm(signum, frame): os.write(pipe_w, b'T')
 
-    def manejador_sigusr2(signum, frame):
-        estado_ui["modo_verbose"] = not estado_ui.get("modo_verbose", False)
+    # Ahora si registro las 5 señales
+    signal.signal(signal.SIGUSR1, handler_sigusr1)
+    signal.signal(signal.SIGHUP, handler_sighup)
+    signal.signal(signal.SIGUSR2, handler_sigusr2)
+    signal.signal(signal.SIGINT, handler_sigint)
+    signal.signal(signal.SIGTERM, handler_sigterm)
 
-    signal.signal(signal.SIGUSR1, manejador_sigusr1)
-    signal.signal(signal.SIGHUP, manejador_sighup)
-    signal.signal(signal.SIGUSR2, manejador_sigusr2)
+    return pipe_r 
+
+#Cambie toda esta parte del código para que use el self-pipe y no haga nada que no sea async-signal-safe en los handlers. 
+#Ahora el main.py puede leer del pipe y procesar las señales de forma segura. 

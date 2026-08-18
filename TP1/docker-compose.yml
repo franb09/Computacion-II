@@ -6,5 +6,4 @@ services:
     tty: true
     volumes:
       - .:/app
-    pid: "host"
-    privileged: true
+    pid: host

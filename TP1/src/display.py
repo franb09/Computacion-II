@@ -76,7 +76,8 @@ def generar_tabla_resumen(resumen_actual, estado_ui):
     tabla.add_column("CPU %", justify="right", style="green", width=8)
     tabla.add_column("MEM (MB)", justify="right", style="yellow", width=10)
     tabla.add_column("THREADS", justify="right", width=8)
-
+    tabla.add_column("USUARIO", style="cyan")
+    tabla.add_column("PPID", justify="right", style="dim")
     procesos_ordenados = procesar_datos_ui(resumen_actual, estado_ui)
 
     for idx, (pid, datos) in enumerate(procesos_ordenados):
@@ -90,6 +91,8 @@ def generar_tabla_resumen(resumen_actual, estado_ui):
             str(datos.get('cpu', '0.0')),
             str(datos.get('memoria', '0.0')),
             str(datos.get('threads', '0')),
+            str(datos.get("usuario", "")),
+            str(datos.get("ppid", "")),
             style=estilo
         )
     
@@ -107,7 +110,12 @@ def generar_tabla_memoria(memoria_actual, estado_ui):
     tabla.add_column("VmStk", justify="right")
     tabla.add_column("VmSwap", justify="right", style="red")
     tabla.add_column("Min/Maj Faults", justify="right")
-
+    tabla.add_column("HWM", justify="right", style="magenta")
+    tabla.add_column("TEXT", justify="right")
+    tabla.add_column("DATA", justify="right")
+    tabla.add_column("HEAP", justify="right")
+    tabla.add_column("STACK", justify="right")
+    tabla.add_column("SHARED", justify="right")
     procesos_ordenados = procesar_datos_ui(memoria_actual, estado_ui)
 
     for idx, (pid, datos) in enumerate(procesos_ordenados):
@@ -123,13 +131,19 @@ def generar_tabla_memoria(memoria_actual, estado_ui):
             str(datos.get('vmstk', '0')),
             str(datos.get('vmswap', '0')),
             str(datos.get('faults', '0/0')),
+            str(datos.get("vmhwm", "0 kB")),
+            str(datos.get("text", "0.0 kB")),
+            str(datos.get("data", "0.0 kB")),
+            str(datos.get("heap", "0.0 kB")),
+            str(datos.get("stack", "0.0 kB")),
+            str(datos.get("shared", "0.0 kB")),
             style=estilo
         )
     
     modo = f" [Orden: {estado_ui['orden'].upper()}]"
     return Panel(Align.center(tabla), title=f"[bold magenta]Monitor de Procesos - Vista Memoria{modo}[/bold magenta]", border_style="magenta")
 
-
+#Ajustamos el limite para que sea mas grande, osea que muestre 15 FDs si el modo verbose esta activo, sino 3
 def generar_tabla_fds(fds_actual, estado_ui):
     tabla = Table(show_header=True, header_style="bold yellow", expand=True)
     tabla.add_column("PID", style="dim", width=6)
@@ -137,11 +151,21 @@ def generar_tabla_fds(fds_actual, estado_ui):
     tabla.add_column("TOTAL FDs", justify="right", style="cyan", width=10)
     tabla.add_column("DESTINOS ABIERTOS (Muestra)", style="green")
 
-    procesos_ordenados = procesar_datos_ui(fds_actual, estado_ui)
+    es_verbose = estado_ui.get("modo_verbose", False)
+    limite_fds = 15 if es_verbose else 3
 
+    procesos_ordenados = procesar_datos_ui(fds_actual, estado_ui)
+        
     for idx, (pid, datos) in enumerate(procesos_ordenados):
         estilo = "on blue" if idx == estado_ui["fila_seleccionada"] else ""
         indicador_pid = f"📌 {pid}" if pid == estado_ui["pineado"] else pid
+      
+        ejemplos_brutos = datos.get('ejemplos', '')  
+        if isinstance(ejemplos_brutos, str):
+            lista_ejemplos = ejemplos_brutos.split(', ')
+            ejemplos_mostrar = ', '.join(lista_ejemplos[:limite_fds])
+        else:
+            ejemplos_mostrar = ', '.join(ejemplos_brutos[:limite_fds])  
 
         tabla.add_row(
             indicador_pid,
@@ -153,7 +177,6 @@ def generar_tabla_fds(fds_actual, estado_ui):
     
     modo = f" [Orden: {estado_ui['orden'].upper()}]"
     return Panel(Align.center(tabla), title=f"[bold yellow]Monitor de Procesos - Vista FDs{modo}[/bold yellow]", border_style="yellow")
-
 
 def generar_tabla_threads(threads_actual, estado_ui):
     tabla = Table(show_header=True, header_style="bold blue", expand=True)
@@ -217,7 +240,8 @@ def generar_tabla_scheduling(sched_actual, estado_ui):
     tabla.add_column("NICE", justify="center", style="yellow")
     tabla.add_column("THREADS", justify="center", style="green")
     tabla.add_column("CPU CORE", justify="center", style="red")
-
+    tabla.add_column("POLICY", style="cyan")
+    tabla.add_column("RT_PRIO", justify="right")
     procesos_ordenados = procesar_datos_ui(sched_actual, estado_ui)
 
     for idx, (pid, datos) in enumerate(procesos_ordenados):
@@ -231,6 +255,8 @@ def generar_tabla_scheduling(sched_actual, estado_ui):
             str(datos.get('nice', '')),
             str(datos.get('threads', '')),
             str(datos.get('core', '')),
+            str(datos.get("policy", "")),
+            str(datos.get("rt_priority", "")),
             style=estilo
         )
     

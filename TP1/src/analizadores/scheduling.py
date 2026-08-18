@@ -2,6 +2,8 @@ import time
 import os
 import procfs
 
+#Agregue policy y rt_priority. Ademas de cambiar que ahora la lista cuente desde 0 hasta el 40.
+
 def recolectar_scheduling(snapshot,intervalo):
 
     while True:
@@ -12,18 +14,15 @@ def recolectar_scheduling(snapshot,intervalo):
             for pid in pids:
                 stat = procfs.leer_stat(pid)
                 status = procfs.leer_status(pid)
-                if stat and status and len(stat) >= 40:
-                    priority = stat[17] 
-                    nice = stat[18]     
-                    threads = stat[19]  
-                    core = stat[38]     
-                    
+                
+                if stat and len(stat) >= 42 and status:
                     datos_sched[pid] = {
-                        "comando": str(status.get("Name", "Desconocido")),
-                        "prioridad": priority,
-                        "nice": nice,
-                        "threads": threads,
-                        "core": core
+                        "comando": status.get("Name", "Desconocido"),
+                        "prioridad": stat[17],
+                        "nice": stat[18],
+                        "rt_priority": stat[39], 
+                        "policy": stat[40],     
+                        "cpus_allowed": status.get("Cpus_allowed_list", "N/A")
                     }
             
             snapshot["scheduling"] = datos_sched

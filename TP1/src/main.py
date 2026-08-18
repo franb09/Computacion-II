@@ -17,6 +17,7 @@ from display import (
     generar_tabla_scheduling,
     generar_panel_ayuda
 )
+
 from senales import configurar_senales
 from recolector import iniciar_recolectores
 from rich.live import Live
@@ -129,7 +130,8 @@ def hilo_teclado():
 
 def main():
     global corriendo, vista_activa
-    
+
+    pipe_lectura_senales = configurar_senales() #cambio la forma en la que llamo a señales.py 
     manager = multiprocessing.Manager()
     snapshot = manager.dict()
     snapshot["resumen"] = {}
@@ -139,8 +141,6 @@ def main():
     snapshot["sistema"] = {}
     snapshot["senales"] = {}
     snapshot["scheduling"] = {}
-
-    configurar_senales(snapshot, intervalos, estado_ui)
 
     procesos_activos = iniciar_recolectores(snapshot, intervalos)
 
@@ -176,17 +176,58 @@ def main():
                     else:
                         pantalla.title = pantalla.title + f" [dim](Refresco: {intervalos[vista_activa].value:.1f}s)[/dim]"
                     pantalla.subtitle = "[dim]Presione 'q' para salir | 'h' para ayuda[/dim]"
-
+# Aca ya hacemos el procesamiento seguro de señales, o sea el self pipe. 
+                try:
+                    data_pipe = os.read(pipe_lectura_senales, 1024)
+                    for byte in data_pipe:
+                        letra = chr(byte)
+                        
+                        if letra == '1': # SIGUSR1
+                            snap = dict(snapshot)
+                            filename = f"dump_{int(time.time())}.json" 
+                            with open(filename, 'w') as f:
+                                json.dump(snap, f, indent=4)
+                                
+                        elif letra == 'H': # SIGHUP
+                            try:
+                                with open("config.json", "r") as f:
+                                    config = json.load(f)
+                                    for k in intervalos:
+                                        if k in config:
+                                            intervalos[k].value = float(config[k])
+                            except Exception:
+                                pass
+                                
+                        elif letra == '2': 
+                            estado_ui["modo_verbose"] = not estado_ui.get("modo_verbose", False)
+                            
+                        elif letra in ('I', 'T'): # SIGINT o SIGTERM
+                            corriendo = False 
+                            
+                except BlockingIOError:
+                    pass 
                 live.update(pantalla)
                 time.sleep(0.1) 
 
     except KeyboardInterrupt:
         pass
+    except KeyboardInterrupt:
+        pass
+
+#ACA arreglo el problema del cerrado del monitor. Ahora agregue una deadline razonable de 1 segundo para que cada proceso termine, y si no lo hace, lo mato. 
+# Esto evita que el monitor quede colgado al cerrar.
     finally:
         print("\nApagando el monitor de forma limpia...")
+        
         for p in procesos_activos:
             p.terminate()
-            p.join()
+            
+        for p in procesos_activos:
+            p.join(timeout=1.0)
+            if p.is_alive():
+                p.kill() 
+        
+        os.system('stty sane')
         sys.exit(0)
 
 if __name__ == "__main__":
