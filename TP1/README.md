@@ -31,14 +31,13 @@ La arquitectura se basa en un proceso central que orquesta la lectura delegando 
   │ │ │ │ └──────► Proceso Analizador: Señales (/proc/<pid>/status)
   │ │ │ └────────► Proceso Analizador: Threads (/proc/<pid>/task)
   │ │ └──────────► Proceso Analizador: FDs (/proc/<pid>/fd)
-  │ └────────────► Proceso Analizador: Memoria (/proc/<pid>/statm)
+  │ └────────────► Proceso Analizador: Memoria (/proc/<pid>/status)
   └──────────────► Proceso Analizador: Resumen (/proc/<pid>/stat, status)
+  └──────────────► Proceso Analizador: Memoria (/proc/<pid>/status, /proc/<pid>/maps)
 
 ```
 
 ---
-
-
 
 ## 3. Decisiones de Diseño Argumentadas
 
@@ -59,7 +58,7 @@ Están escalonados según el costo de I/O. La vista de Sistema y Resumen refresc
 ## 4. Conceptos del Curso Aplicados
 Multiprocessing vs Threading: Se aplicó el concepto de que para tareas pesadas de I/O y parseo (leer cientos de archivos en /proc) convenía aislar la carga en procesos (multiprocessing.Process) para evitar el cuello de botella del GIL de Python. En cambio, para capturar la entrada del usuario (tty.setcbreak), usamos un hilo (threading.Thread) ya que simplemente espera I/O del teclado y no requiere procesamiento pesado.
 
-Señales (Signals): Se implementó un manejador para señales POSIX (Clase 6). Al recibir un SIGUSR1, el monitor interrumpe su ejecución normal de forma segura para hacer un dump del estado actual de la memoria a un archivo snapshot_dump.json.
+Señales (Signals) y Async-Signal-Safety: Se implementó el manejo de señales POSIX (SIGINT, SIGTERM, SIGUSR1, etc.) aplicando el patrón self-pipe visto en la Clase 6. Para evitar race conditions o bloqueos al interrumpir el flujo principal, los handlers únicamente escriben un byte en un pipe no bloqueante y retornan inmediatamente. El hilo principal lee este pipe de forma segura y ejecuta las rutinas pesadas, como el apagado limpio (terminando a los hijos con un deadline razonable) o el volcado del estado a un archivo dinámico dump_<timestamp>.json.
 
 ---
 
@@ -71,28 +70,29 @@ Entorno Docker y TUI: Docker Compose captura el stdin y formatea el stdout de un
 ---
 
 ## 6. Cómo correr y testear
-Instrucción importante sobre Docker:
-Aunque la consigna indica utilizar docker compose up --build, dicho comando está diseñado para correr servicios en background (daemon). Compose inyecta obligatoriamente prefijos (ej: monitor-1 |) y no enlaza el stdin de forma directa para capturar el teclado al vuelo, lo cual rompe el renderizado de la librería gráfica e impide usar los atajos de teclado solicitados, incluso si se usa tty: true.
+Para cumplir con los requerimientos del entorno, el sistema se construye y levanta utilizando el comando estándar: 
 
-Por lo tanto, para una correcta ejecución interactiva, clonar el repositorio y correr:
+```bash
+docker compose up --build
+```
+
+Nota técnica sobre la ejecución: El monitor implementa un apagado limpio al recibir SIGINT (Ctrl+C) directamente desde el orquestador. Sin embargo, debido a que docker compose up multiplexa la salida inyectando prefijos a los logs (monitor-1 |), se producirán artefactos visuales en el renderizado de la TUI.  Para evaluar la TUI interactiva, la navegación por teclado y el renderizado sin la interferencia del multiplexor de Docker, se recomienda acoplar la terminal directamente con:
+
 ```bash
 docker compose run --rm monitor
 ```
 
 Para probar el volcado de memoria (SIGUSR1):
-
-  1.Con el monitor corriendo, abrir otra terminal.
-
-  2.Identificar el contenedor y mandarle la señal:
-  ```bash
-docker kill --signal=SIGUSR1 $(docker ps -q -f ancestor=tp1-monitor)
-```
-
-  3.Revisar que se haya creado el archivo snapshot_dump.json en el host.
+ 1.Con el monitor corriendo, abrir otra terminal.
+ 2.Identificar el contenedor y mandarle la señal:
+ ```bash
+ docker kill --signal=SIGUSR1 $(docker ps -q -f ancestor=tp1-monitor)
+ ```
+ 3.Revisar que se haya creado el archivo dump_<timestamp>.json en el directorio host.  
 
 ---
 
-## 7. Gif del monitor funcionando ![Demo del Monitor funcionando](assets/gif-monitor-definitivo.gif)
+## 7. Gif del monitor funcionando ![Demo del Monitor funcionando](assets/prueba-monitor-definitivo-2.gif)
 
 ---
 

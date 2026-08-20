@@ -6,6 +6,8 @@ import tty
 import termios
 import os
 import json
+from rich.console import Console
+import signal
 
 from display import (
     generar_tabla_resumen, 
@@ -71,67 +73,73 @@ def capturar_tecla():
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
+
 def hilo_teclado():
-    global vista_activa, corriendo, estado_ui
-    while corriendo:
-        tecla = capturar_tecla()
+    try:
+        global vista_activa, corriendo, estado_ui
+        while corriendo:
+            tecla = capturar_tecla()
         
-        if estado_ui["input_activo"]:
-            if tecla == 'enter':
-                if estado_ui["input_activo"] == 'cmd':
-                    estado_ui["filtro_cmd"] = estado_ui["buffer"]
+            if estado_ui["input_activo"]:
+                if tecla == 'enter':
+                    if estado_ui["input_activo"] == 'cmd':
+                        estado_ui["filtro_cmd"] = estado_ui["buffer"]
+                    else:
+                        estado_ui["filtro_usr"] = estado_ui["buffer"]
+                    estado_ui["input_activo"] = None
+                    estado_ui["buffer"] = ""
+                elif tecla == 'backspace':
+                    estado_ui["buffer"] = estado_ui["buffer"][:-1]
+                elif tecla == '\x1b': 
+                    estado_ui["input_activo"] = None
+                    estado_ui["buffer"] = ""
+                elif len(tecla) == 1:
+                    estado_ui["buffer"] += tecla
+                continue
+
+            if not isinstance(tecla, str): continue
+            tecla_lower = tecla.lower()
+
+            if tecla_lower == 'q' or tecla == '\x03':
+             corriendo = False
+            elif tecla_lower in ['1', '2', '3', '4', '5', '6', '7', 'r', 'm', 'f', 't', 's', 'p', 'g']:
+                mapeo_letras = {'r':'1', 'm':'2', 'f':'3', 't':'4', 's':'5', 'p':'6', 'g':'7'}
+                vista_activa = mapeo_letras.get(tecla_lower, tecla_lower)
+                estado_ui["fila_seleccionada"] = 0
+            elif tecla_lower == '+':
+                if vista_activa in intervalos:
+                    intervalos[vista_activa].value = max(0.5, intervalos[vista_activa].value - 0.5)
+            elif tecla_lower == '-':
+                if vista_activa in intervalos:
+                    intervalos[vista_activa].value += 0.5
+            elif tecla == 'up':
+                estado_ui["fila_seleccionada"] = max(0, estado_ui["fila_seleccionada"] - 1)
+            elif tecla == 'down':
+                estado_ui["fila_seleccionada"] += 1
+            elif tecla == 'enter':
+                if estado_ui["pineado"] == estado_ui["pid_en_fila"]:
+                    estado_ui["pineado"] = None
                 else:
-                    estado_ui["filtro_usr"] = estado_ui["buffer"]
-                estado_ui["input_activo"] = None
-                estado_ui["buffer"] = ""
-            elif tecla == 'backspace':
-                estado_ui["buffer"] = estado_ui["buffer"][:-1]
-            elif tecla == '\x1b': 
-                estado_ui["input_activo"] = None
-                estado_ui["buffer"] = ""
-            elif len(tecla) == 1:
-                estado_ui["buffer"] += tecla
-            continue
-
-        if not isinstance(tecla, str): continue
-        tecla_lower = tecla.lower()
-
-        if tecla_lower == 'q':
-            corriendo = False
-        elif tecla_lower in ['1', '2', '3', '4', '5', '6', '7', 'r', 'm', 'f', 't', 's', 'p', 'g']:
-            mapeo_letras = {'r':'1', 'm':'2', 'f':'3', 't':'4', 's':'5', 'p':'6', 'g':'7'}
-            vista_activa = mapeo_letras.get(tecla_lower, tecla_lower)
-            estado_ui["fila_seleccionada"] = 0
-        elif tecla_lower == '+':
-            if vista_activa in intervalos:
-                intervalos[vista_activa].value = max(0.5, intervalos[vista_activa].value - 0.5)
-        elif tecla_lower == '-':
-            if vista_activa in intervalos:
-                intervalos[vista_activa].value += 0.5
-        elif tecla == 'up':
-            estado_ui["fila_seleccionada"] = max(0, estado_ui["fila_seleccionada"] - 1)
-        elif tecla == 'down':
-            estado_ui["fila_seleccionada"] += 1
-        elif tecla == 'enter':
-            if estado_ui["pineado"] == estado_ui["pid_en_fila"]:
-                estado_ui["pineado"] = None
-            else:
-                estado_ui["pineado"] = estado_ui["pid_en_fila"]
-        elif tecla == '/':
-            estado_ui["input_activo"] = 'cmd'
-        elif tecla == 'u':
-            estado_ui["input_activo"] = 'usr'
-        elif tecla_lower == 'c':
-            ordenes = ['default', 'pid', 'cpu', 'rss']
-            idx = ordenes.index(estado_ui["orden"])
-            estado_ui["orden"] = ordenes[(idx + 1) % len(ordenes)]
-        elif tecla_lower in ['h', '?']:
-            estado_ui["ayuda"] = not estado_ui["ayuda"]
-
+                    estado_ui["pineado"] = estado_ui["pid_en_fila"]
+            elif tecla == '/':
+                estado_ui["input_activo"] = 'cmd'
+            elif tecla == 'u':
+                estado_ui["input_activo"] = 'usr'
+            elif tecla_lower == 'c':
+                ordenes = ['default', 'pid', 'cpu', 'rss']
+                idx = ordenes.index(estado_ui["orden"])
+                estado_ui["orden"] = ordenes[(idx + 1) % len(ordenes)]
+            elif tecla_lower in ['h', '?']:
+                estado_ui["ayuda"] = not estado_ui["ayuda"]
+    except termios.error:
+                pass
+    except Exception:
+                pass
 def main():
     global corriendo, vista_activa
 
     pipe_lectura_senales = configurar_senales() #cambio la forma en la que llamo a señales.py 
+
     manager = multiprocessing.Manager()
     snapshot = manager.dict()
     snapshot["resumen"] = {}
@@ -148,7 +156,8 @@ def main():
     t_teclado.start()
 
     try:
-        with Live(generar_tabla_resumen(snapshot.get("resumen", {}), estado_ui), refresh_per_second=5, screen=True) as live:
+        consola_forzada = Console(force_terminal=True, force_interactive=True)
+        with Live(generar_tabla_resumen(snapshot.get("resumen", {}), estado_ui), console=consola_forzada, refresh_per_second=5, screen=True) as live:
             while corriendo:
                 if estado_ui["ayuda"]:
                     pantalla = generar_panel_ayuda()
@@ -176,7 +185,7 @@ def main():
                     else:
                         pantalla.title = pantalla.title + f" [dim](Refresco: {intervalos[vista_activa].value:.1f}s)[/dim]"
                     pantalla.subtitle = "[dim]Presione 'q' para salir | 'h' para ayuda[/dim]"
-# Aca ya hacemos el procesamiento seguro de señales, o sea el self pipe. 
+                    
                 try:
                     data_pipe = os.read(pipe_lectura_senales, 1024)
                     for byte in data_pipe:
