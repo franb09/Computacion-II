@@ -197,6 +197,7 @@ def generar_tabla_threads(threads_actual, estado_ui):
             str(datos.get('total_threads', '0')),
             str(datos.get('ejemplos', '')),
             style=estilo
+            
         )
     
     modo = f" [Orden: {estado_ui['orden'].upper()}]"
@@ -231,7 +232,7 @@ def generar_tabla_senales(senales_actual, estado_ui):
     modo = f" [Orden: {estado_ui['orden'].upper()}]"
     return Panel(Align.center(tabla), title=f"[bold red]Monitor de Procesos - Vista Señales{modo}[/bold red]", border_style="red")
 
-
+#Agregue las columnas para mostrar Context switches (voluntary y nonvoluntary) de status y la Afinidad de CPU (cpus_allowed_list).
 def generar_tabla_scheduling(sched_actual, estado_ui):
     tabla = Table(show_header=True, header_style="bold cyan", expand=True)
     tabla.add_column("PID", style="dim", width=6)
@@ -242,6 +243,8 @@ def generar_tabla_scheduling(sched_actual, estado_ui):
     tabla.add_column("CPU CORE", justify="center", style="red")
     tabla.add_column("POLICY", style="cyan")
     tabla.add_column("RT_PRIO", justify="right")
+    tabla.add_column("AFINIDAD", style="magenta")
+    tabla.add_column("CTX VOL/INVOL", justify="right")
     procesos_ordenados = procesar_datos_ui(sched_actual, estado_ui)
 
     for idx, (pid, datos) in enumerate(procesos_ordenados):
@@ -257,12 +260,13 @@ def generar_tabla_scheduling(sched_actual, estado_ui):
             str(datos.get('core', '')),
             str(datos.get("policy", "")),
             str(datos.get("rt_priority", "")),
+            str(datos.get("cpus_allowed", "")),
+            f"{datos.get('ctx_vol', '0')} / {datos.get('ctx_invol', '0')}",
             style=estilo
         )
     
     modo = f" [Orden: {estado_ui['orden'].upper()}]"
     return Panel(Align.center(tabla), title=f"[bold cyan]Monitor de Procesos - Vista Scheduling{modo}[/bold cyan]", border_style="cyan")
-
 
 def generar_vista_sistema(sistema_actual):
     if "ERROR" in sistema_actual:
