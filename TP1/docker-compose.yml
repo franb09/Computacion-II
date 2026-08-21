@@ -5,4 +5,5 @@ services:
     tty: true
     volumes:
       - .:/app
+      - /etc/passwd:/etc/passwd:ro
     pid: host

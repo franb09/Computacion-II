@@ -69,13 +69,14 @@ Entorno Docker y TUI: Docker Compose captura el stdin y formatea el stdout de un
 ---
 
 ## 6. Cómo correr y testear
-Para cumplir con los requerimientos del entorno, el sistema se construye y levanta utilizando el comando estándar: 
+
+.Para cumplir con los requerimientos del entorno, el sistema se construye y levanta utilizando el comando estándar: 
 
 ```bash
 docker compose up --build
 ```
 
-Aclaración sobre la ejecución: El apagado limpio con Ctrl+C (SIGINT) ya está implementado y funciona mandándolo desde Docker Compose. El tema es que si levantamos el proyecto con docker compose up, Docker te inyecta obligatoriamente el prefijo (monitor-1 |) en la consola y eso rompe todo el dibujo de la interfaz gráfica.
+.Aclaración sobre la ejecución: El apagado limpio con Ctrl+C (SIGINT) ya está implementado y funciona mandándolo desde Docker Compose. El tema es que si levantamos el proyecto con docker compose up, Docker te inyecta obligatoriamente el prefijo (monitor-1 |) en la consola y eso rompe todo el dibujo de la interfaz gráfica.
 Por eso, para que se pueda probar bien la interactividad, usar los atajos del teclado y ver las tablas sin que Docker ensucie la pantalla, lo ideal es levantar la terminal directamente con:
 
 ```bash
@@ -84,14 +85,18 @@ docker compose run --rm monitor
 
 Para probar el volcado de memoria (SIGUSR1):
 
- 1.Con el monitor corriendo, abrir otra terminal.
- 2.Identificar el contenedor y mandarle la señal:
+ 1. Con el monitor corriendo, abrir otra terminal.
+ 2. Identificar el contenedor y mandarle la señal:
 
  ```bash
  docker kill --signal=SIGUSR1 $(docker ps -q -f ancestor=tp1-monitor)
  ```
 
- 3.Revisar que se haya creado el archivo dump_<timestamp>.json en el directorio host.  
+ 3. Revisar que se haya creado el archivo dump_<timestamp>.json en el directorio host.  
+
+.Aclaración sobre la lectura de FDs y Memoria (Permisos del Kernel):
+Al ejecutar el monitor sin privilegios de administrador, el kernel de Linux restringe la lectura profunda de ciertas rutas (como os.readlink en /proc/<pid>/fd/ o los segmentos en /proc/<pid>/maps) para los procesos críticos del sistema (ej: systemd, kthreadd o procesos de otros usuarios). Por este motivo, para estos procesos el total de FDs se contabilizará correctamente, pero la lista de destinos abiertos o los detalles de HEAP/STACK pueden aparecer vacíos o en 0.
+Para evaluar correctamente la extracción de estos datos y comprobar la expansión de FDs al enviar SIGUSR2, se recomienda utilizar el atajo / y filtrar por procesos ejecutados a nivel de usuario, como python, bash o la propia TUI del monitor.
 
 ---
 

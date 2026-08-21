@@ -52,7 +52,8 @@ estado_ui = {
     "input_activo": None, 
     "buffer": "",
     "ayuda": False,
-    "pid_en_fila": None 
+    "pid_en_fila": None,
+    "modo_verbose": False
 }
 
 def capturar_tecla():

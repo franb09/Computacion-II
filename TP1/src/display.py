@@ -171,7 +171,7 @@ def generar_tabla_fds(fds_actual, estado_ui):
             indicador_pid,
             str(datos.get('comando', ''))[:20],
             str(datos.get('total_fds', '0')),
-            str(datos.get('ejemplos', '')),
+            ejemplos_mostrar,
             style=estilo
         )
     

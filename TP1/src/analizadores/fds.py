@@ -22,7 +22,7 @@ def recolectar_fds(snapshot, intervalo):
                     total_fds = len(fds)
                     
                     ejemplos_fds = []
-                    for fd in fds[:4]:
+                    for fd in fds[:15]:
                         try:
                             destino = os.readlink(f"{fd_path}/{fd}")
                             tipo = "file"
