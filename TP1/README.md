@@ -2,7 +2,7 @@
 # Trabajo Práctico Nº 1: Monitor de Procesos 
 
 **Alumno:** Franco Luciano Berardo
-**Materia:** Computación II 
+**- Materia:** Computación II 
 ---
 
 ## 1. Descripción General
@@ -100,7 +100,7 @@ Para evaluar correctamente la extracción de estos datos y comprobar la expansi�
 
 ---
 
-## 7. Gif del monitor funcionando ![Demo del Monitor funcionando](assets/prueba-monitor-definitivo-2.gif)
+## 7. Gif del monitor funcionando ![Demo del Monitor funcionando](assets/gif-monitor-definitivo-FINAL.gif)
 
 ---
 
