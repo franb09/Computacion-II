@@ -1,0 +1,33 @@
+{
+  "timestamp": 1793571205,
+  "estadisticas": {
+    "totales_por_estado": {
+      "pendiente": 0,
+      "ejecutando": 0,
+      "completada": 1,
+      "fallida": 0,
+      "cancelada": 0
+    },
+    "tiempo_promedio_ejecucion": 3.00153,
+    "workers_totales": 4,
+    "workers_ocupados": 0,
+    "tareas_en_cola": 0
+  },
+  "tareas": [
+    {
+      "id": 1,
+      "tipo": "esperar",
+      "estado": "completada",
+      "timeout": 30.0,
+      "creada_en": 1793571003.34809,
+      "iniciada_en": 1793571003.34926,
+      "finalizada_en": 1793571006.35082,
+      "duracion": 3.00153,
+      "resultado": {
+        "segundos_esperados": 3.0,
+        "tiempo_real_segundos": 3.00137
+      },
+      "error": null
+    }
+  ]
+}

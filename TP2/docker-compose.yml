@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - NUM_WORKERS=4
+      - MAX_COLA=200
+      - MAX_PROCESOS_CPU=2
+      - DIRECTORIO_ESTADO=/app
+    stop_grace_period: 15s
