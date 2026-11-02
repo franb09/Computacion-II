@@ -1,7 +1,6 @@
 from typing import Any, Literal
 from pydantic import BaseModel, Field, model_validator
 
-# Estados exactos que pide la consigna en Requisitos Funcionales 1
 EstadoTarea = Literal['pendiente', 'ejecutando', 'completada', 'fallida', 'cancelada']
 TipoTarea = Literal['descargar', 'hashear', 'esperar']
 
@@ -9,12 +8,23 @@ TipoTarea = Literal['descargar', 'hashear', 'esperar']
 class TareaNueva(BaseModel):
     """Esquema de entrada para POST /tareas."""
     tipo: TipoTarea
+    prioridad: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        description='Prioridad de la tarea: 1 = más baja, 5 = más alta (estilo Clase 19)'
+    )
+    max_reintentos: int = Field(
+        default=0,
+        ge=0,
+        le=5,
+        description='Cantidad máxima de reintentos automáticos con backoff exponencial si falla'
+    )
     timeout: float = Field(
         default=30.0,
         gt=0,
-        description='Tiempo máximo de ejecución en segundos antes de fallar por timeout'
+        description='Tiempo máximo de ejecución por intento en segundos'
     )
-    # Parámetros según el tipo de tarea:
     urls: list[str] | None = Field(
         default=None,
         description='Lista de URLs para la tarea tipo descargar'
@@ -36,7 +46,6 @@ class TareaNueva(BaseModel):
 
     @model_validator(mode='after')
     def validar_parametros_por_tipo(self) -> 'TareaNueva':
-        """Verifica que el cliente mande los datos obligatorios según el tipo de tarea."""
         if self.tipo == 'descargar' and not self.urls:
             raise ValueError("La tarea 'descargar' requiere una lista no vacía en 'urls'.")
         if self.tipo == 'hashear' and (self.texto is None or self.iteraciones is None):
@@ -51,6 +60,9 @@ class TareaRespuesta(BaseModel):
     id: int
     tipo: TipoTarea
     estado: EstadoTarea
+    prioridad: int
+    intentos_realizados: int
+    max_reintentos: int
     timeout: float
     creada_en: float
     iniciada_en: float | None = None
