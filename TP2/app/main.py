@@ -16,8 +16,6 @@ from app.worker_manager import GestorTareas
 
 
 class RateLimiterPorCliente:
-    """Limita la cantidad de tareas creadas por IP en una ventana deslizante de tiempo."""
-
     def __init__(self, max_peticiones: int = 120, ventana_segundos: float = 60.0):
         self.max_peticiones = max_peticiones
         self.ventana_segundos = ventana_segundos
@@ -40,7 +38,6 @@ class RateLimiterPorCliente:
 
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI):
-    """Inicializa el pool de workers al arrancar y ejecuta el apagado ordenado al recibir SIGINT/SIGTERM."""
     num_workers = int(os.getenv('NUM_WORKERS', '4'))
     max_cola = int(os.getenv('MAX_COLA', '200'))
     max_procesos_cpu = int(os.getenv('MAX_PROCESOS_CPU', '2'))
@@ -90,7 +87,6 @@ async def crear_tarea(
         description='Solo para Medición 2: si es True, ejecuta hashear sin run_in_executor',
     ),
 ):
-    """Encola una tarea verificando primero el Rate Limit del cliente."""
     gestor: GestorTareas = request.app.state.gestor
     limiter: RateLimiterPorCliente = request.app.state.rate_limiter
 
@@ -150,19 +146,16 @@ async def obtener_estadisticas(request: Request):
 
 @app.get('/metricas', response_class=PlainTextResponse)
 async def obtener_metricas_prometheus(request: Request):
-    """Bonus 5: Endpoint de métricas en formato Prometheus."""
     gestor: GestorTareas = request.app.state.gestor
     return gestor.generar_metricas_prometheus()
 
 
 @app.websocket('/eventos')
 async def websocket_eventos(ws: WebSocket):
-    """Bonus 1: WebSocket para notificar cambios de estado de las tareas en tiempo real."""
     gestor: GestorTareas = ws.app.state.gestor
     await gestor.conectar_ws(ws)
     try:
         while True:
-            # Mantenemos la conexión abierta esperando mensajes o desconexión del cliente
             await ws.receive_text()
     except WebSocketDisconnect:
         gestor.desconectar_ws(ws)

@@ -18,13 +18,10 @@ logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s',
 )
 
-# Marca única para apagar los workers ordenadamente (Clase 21 - cola.py)
 CENTINELA = object()
 
 
 class GestorTareas:
-    """Administra la PriorityQueue asíncrona, workers, reintentos, WebSockets y persistencia."""
-
     def __init__(
         self,
         num_workers: int = 4,
@@ -38,12 +35,10 @@ class GestorTareas:
         self.max_cola = max_cola
         self.max_procesos_cpu = max_procesos_cpu
         self.directorio_estado = directorio_estado
-        # Factor de envejecimiento (aging) para evitar inanición en la PriorityQueue
         self.factor_aging = factor_aging
         self.backoff_base = backoff_base
         self.t0_servidor = time.monotonic()
 
-        # Contador monótono para desempatar tuplas en PriorityQueue sin TypeError (Clase 21)
         self._contador_fifo = itertools.count()
 
         self.tareas: dict[int, dict] = {}
@@ -60,11 +55,6 @@ class GestorTareas:
         self.cliente_http: httpx.AsyncClient | None = None
 
     def _calcular_item_cola(self, prioridad: int, item: object) -> tuple[float, int, object]:
-        """Calcula la tupla (peso, orden_fifo, item) con anti-inanición (aging).
-        Como PriorityQueue saca primero el menor valor:
-        peso = -prioridad - (segundos_transcurridos * factor_aging)
-        Así, las tareas viejas de baja prioridad le ganan a las nuevas si esperan mucho.
-        """
         edad = time.monotonic() - self.t0_servidor
         peso = -float(prioridad) - (edad * self.factor_aging)
         return (peso, next(self._contador_fifo), item)
@@ -77,7 +67,6 @@ class GestorTareas:
         self.clientes_ws.discard(ws)
 
     async def notificar_evento(self, evento: str, registro: dict, extra: str | None = None) -> None:
-        """Envía notificaciones en tiempo real a todos los clientes WebSocket conectados."""
         if not self.clientes_ws:
             return
         mensaje = {
@@ -102,7 +91,6 @@ class GestorTareas:
             self.clientes_ws.discard(ws)
 
     def reportar_volcado_previo(self) -> None:
-        """Al arrancar, verifica si existen volcados estado_<timestamp>.json previos."""
         patron = os.path.join(self.directorio_estado, 'estado_*.json')
         archivos = sorted(glob.glob(patron))
         if archivos:
@@ -120,7 +108,6 @@ class GestorTareas:
             logger.info('No se encontraron volcados de estado previos al arrancar.')
 
     async def iniciar(self) -> None:
-        """Inicializa la PriorityQueue, el cliente HTTP, el ProcessPoolExecutor y los workers."""
         self.reportar_volcado_previo()
         self.cerrando = False
         self.cola = asyncio.PriorityQueue(maxsize=self.max_cola)
@@ -137,7 +124,6 @@ class GestorTareas:
         )
 
     async def encolar(self, nueva: TareaNueva, bloquear_loop: bool = False) -> dict:
-        """Crea una tarea en estado pendiente y la mete en la PriorityQueue."""
         if self.cerrando:
             raise RuntimeError('El servidor se está apagando y no acepta tareas nuevas.')
 
@@ -194,7 +180,6 @@ class GestorTareas:
             raise ValueError(f'Tipo de tarea desconocido: {tipo}')
 
     async def _ejecutar_con_reintentos(self, registro: dict) -> dict:
-        """Ejecuta la tarea aplicando el timeout por intento y backoff exponencial si falla."""
         max_intentos = 1 + registro['max_reintentos']
         ultimo_error: Exception | None = None
 
@@ -204,7 +189,6 @@ class GestorTareas:
                 async with asyncio.timeout(registro['timeout']):
                     return await self._ejecutar_segun_tipo(registro)
             except asyncio.CancelledError:
-                # La cancelación por DELETE o apagado NUNCA se reintenta: se propaga de inmediato
                 raise
             except Exception as exc:
                 ultimo_error = exc
@@ -229,7 +213,6 @@ class GestorTareas:
                     raise ultimo_error
 
     async def _worker(self, wid: int) -> None:
-        """Corrutina consumidora que extrae tareas ordenadas por prioridad."""
         while True:
             _, _, item = await self.cola.get()
             if item is CENTINELA:
@@ -292,7 +275,6 @@ class GestorTareas:
                 self.cola.task_done()
 
     async def cancelar_tarea(self, tarea_id: int) -> str:
-        """Cancela una tarea pendiente o en ejecución."""
         if tarea_id not in self.tareas:
             raise KeyError('No existe esa tarea')
 
@@ -356,7 +338,6 @@ class GestorTareas:
         }
 
     def generar_metricas_prometheus(self) -> str:
-        """Genera métricas en el formato de texto plano estándar de Prometheus."""
         stats = self.obtener_estadisticas()
         totales = stats['totales_por_estado']
         lineas = [
@@ -400,9 +381,6 @@ class GestorTareas:
             return
         self.cerrando = True
         logger.info('Iniciando apagado ordenado: ya no se aceptan tareas nuevas.')
-
-        # Ponemos los centinelas con prioridad mínima (-infinito no, sino +infinito para que salgan
-        # después de las tareas ya encoladas, o peso alto positivo)
         for _ in range(self.num_workers):
             await self.cola.put((float('inf'), next(self._contador_fifo), CENTINELA))
 

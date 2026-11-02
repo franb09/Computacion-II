@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 """Script para ejecutar las 3 mediciones obligatorias del TP2 contra la API en vivo.
-
-Uso (con el contenedor corriendo en otra terminal):
-    docker compose exec api python benchmarks.py
 """
 import asyncio
 import time
@@ -12,7 +9,6 @@ API_URL = 'http://localhost:8000'
 
 
 async def esperar_completadas(cliente: httpx.AsyncClient, ids: list[int], intervalo: float = 0.05):
-    """Consulta el estado de una lista de tareas hasta que todas terminen."""
     pendientes = set(ids)
     while pendientes:
         for tid in list(pendientes):
@@ -25,15 +21,12 @@ async def esperar_completadas(cliente: httpx.AsyncClient, ids: list[int], interv
 
 
 async def medicion_1_concurrencia_io(cliente: httpx.AsyncClient):
-    """Medición 1: 20 descargas secuenciales vs 20 descargas concurrentes."""
     print('\n' + '=' * 70)
     print('MEDICIÓN 1: Concurrencia I/O (20 descargas secuenciales vs concurrentes)')
     print('=' * 70)
 
-    # Usamos un endpoint real liviano (example.com) para medir I/O de red real
     urls = ['https://example.com' for _ in range(20)]
 
-    # 1.A) 20 descargas secuenciales (una tras otra, esperando a que termine cada una)
     print('-> Ejecutando 20 descargas de forma SECUENCIAL...')
     t0 = time.perf_counter()
     for u in urls:
@@ -43,7 +36,6 @@ async def medicion_1_concurrencia_io(cliente: httpx.AsyncClient):
     t_secuencial = time.perf_counter() - t0
     print(f'   Tiempo total SECUENCIAL (20 descargas):  {t_secuencial:.5f} s')
 
-    # 1.B) 20 descargas concurrentes (una tarea con las 20 URLs via asyncio.gather)
     print('-> Ejecutando 20 descargas de forma CONCURRENTE (gather)...')
     t0 = time.perf_counter()
     r = await cliente.post(f'{API_URL}/tareas', json={'tipo': 'descargar', 'urls': urls})
@@ -59,14 +51,12 @@ async def medicion_1_concurrencia_io(cliente: httpx.AsyncClient):
 
 
 async def medicion_2_event_loop_bloqueado(cliente: httpx.AsyncClient):
-    """Medición 2: Latencia de GET /tareas durante tarea CPU-bound SIN vs CON run_in_executor."""
     print('\n' + '=' * 70)
     print('MEDICIÓN 2: El Event Loop Bloqueado (CPU-bound SIN vs CON executor)')
     print('=' * 70)
 
-    iteraciones = 4_000_000  # ~2 a 4 segundos de CPU pura en SHA-256
+    iteraciones = 4_000_000 
 
-    # 2.A) SIN run_in_executor (bloqueando el event loop intencionalmente)
     print(f'-> Lanzando hashear ({iteraciones:,} iteraciones) SIN run_in_executor...')
     r = await cliente.post(
         f'{API_URL}/tareas?bloquear_loop=true',
@@ -74,7 +64,6 @@ async def medicion_2_event_loop_bloqueado(cliente: httpx.AsyncClient):
     )
     tid_bloqueante = r.json()['id']
 
-    # Damos 20 ms para que el worker tome la tarea de la cola y medimos cuánto tarda GET /tareas
     await asyncio.sleep(0.02)
     t0_get = time.perf_counter()
     await cliente.get(f'{API_URL}/tareas')
@@ -86,7 +75,6 @@ async def medicion_2_event_loop_bloqueado(cliente: httpx.AsyncClient):
     print(f'   Duración del cálculo CPU:                {dur_calculo_1:.5f} s')
     print(f'   Tiempo de respuesta de GET /tareas:      {latencia_sin_executor_ms:.5f} ms  <-- ¡LOOP CONGELADO!')
 
-    # 2.B) CON ProcessPoolExecutor (comportamiento normal no bloqueante)
     print(f'\n-> Lanzando hashear ({iteraciones:,} iteraciones) CON ProcessPoolExecutor...')
     r = await cliente.post(
         f'{API_URL}/tareas?bloquear_loop=false',
@@ -108,7 +96,6 @@ async def medicion_2_event_loop_bloqueado(cliente: httpx.AsyncClient):
 
 
 async def medicion_3_techo_del_pool(cliente: httpx.AsyncClient):
-    """Medición 3: Escalar cantidad de tareas concurrentes para ver el techo del pool de 4 workers."""
     print('\n' + '=' * 70)
     print('MEDICIÓN 3: Techo del Pool de Workers (escalando carga concurrente)')
     print('=' * 70)

@@ -6,7 +6,6 @@ TipoTarea = Literal['descargar', 'hashear', 'esperar']
 
 
 class TareaNueva(BaseModel):
-    """Esquema de entrada para POST /tareas."""
     tipo: TipoTarea
     prioridad: int = Field(
         default=1,
@@ -56,7 +55,6 @@ class TareaNueva(BaseModel):
 
 
 class TareaRespuesta(BaseModel):
-    """Lo que devuelve la API al consultar una tarea."""
     id: int
     tipo: TipoTarea
     estado: EstadoTarea
@@ -73,7 +71,6 @@ class TareaRespuesta(BaseModel):
 
 
 class EstadisticasRespuesta(BaseModel):
-    """Esquema para GET /estadisticas."""
     totales_por_estado: dict[EstadoTarea, int]
     tiempo_promedio_ejecucion: float
     workers_totales: int
