@@ -1,2 +1,2 @@
 # Computacion-II
-Repositorio para Computación II
+Repositorio de Franco Berardo para Computación II.
